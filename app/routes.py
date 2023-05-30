@@ -1,24 +1,21 @@
-from app.app import app
-from flask import request, render_template, jsonify
+from flask import Blueprint, request, jsonify
 from celery.result import AsyncResult
-from app.tasks import *
+from app.tasks import report
 
+bp = Blueprint('report', __name__, url_prefix='/report')
 
-@app.route('/')
-def default():
-    return "Welcome to Report Service"
-
-@app.route('/health')
-def health():
-    return jsonify({"state":"healthy"})
-
-@app.route('/report', methods=['POST'])
+@bp.route('/', methods=['POST'])
 def generate_report():
     async_result = report.delay()
-    return jsonify({"report_id":async_result.id})
+    return jsonify({"report_id": async_result.id})
 
-
-@app.route('/report/<report_id>')
+@bp.route('/<report_id>')
 def get_report(report_id):
-    res = AsyncResult(report_id,app=celery)
-    return jsonify({"id":res.id,"result":res.result})
+    res = AsyncResult(report_id, app=bp.celery)
+    return jsonify({"id": res.id, "result": res.result})
+
+def register_routes(app):
+    app.register_blueprint(bp)
+    return app
+
+app = register_routes(app)
